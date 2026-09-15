@@ -1,0 +1,149 @@
+<link rel="stylesheet" href="/plugins/addon/ouyun_coin_pro/template/admin/css/ouyun.css?v=c" />
+<!-- =======平台币pro - 基础配置======= -->
+<div id="content" class="template oycp" v-cloak>
+  <com-config>
+    <t-card class="list-card-container" style="width:100%;">
+
+      <ul class="common-tab">
+        <li><a href="/{$template_catalog}/plugin/ouyun_coin_pro/index.htm">活动配置</a></li>
+        <li class="active"><a href="javascript:;">基础配置</a></li>
+        <li><a href="/{$template_catalog}/plugin/ouyun_coin_pro/grant.htm">发放详情</a></li>
+        <li><a href="/{$template_catalog}/plugin/ouyun_coin_pro/client.htm">用户余额</a></li>
+        <li><a href="/{$template_catalog}/plugin/ouyun_coin_pro/report.htm">数据报表</a></li>
+      </ul>
+
+      <t-form label-align="right" :label-width="210" style="max-width:760px;" v-loading="loading">
+        <t-divider align="left">基础</t-divider>
+        <t-form-item label="平台币功能">
+          <t-switch v-model="form.enable" :custom-value="['1','0']"></t-switch>
+          <span class="tip">总开关,关闭后前台不可见、不可抵扣</span>
+        </t-form-item>
+        <t-form-item label="平台币名称">
+          <t-input v-model="form.coin_name" :maxlength="20" style="width:240px;"></t-input>
+          <span class="tip">默认"平台币",前台全部跟随</span>
+        </t-form-item>
+        <t-form-item label="汇率">
+          <span>1 元 =</span>
+          <t-input-number v-model="form.rate" :min="0.0001" :step="1" theme="normal" style="width:130px;margin:0 8px;"></t-input-number>
+          <span>{{ form.coin_name || '平台币' }}(赠送与抵扣双向换算,默认1:1)</span>
+        </t-form-item>
+        <t-form-item label="平台币说明">
+          <div style="width:520px;">
+            <t-textarea v-model="form.description" :autosize="{minRows:4,maxRows:10}" :maxlength="5000"
+              placeholder="前台平台币页展示的说明文字(支持HTML富文本)"></t-textarea>
+          </div>
+        </t-form-item>
+
+        <t-divider align="left">展示</t-divider>
+        <t-form-item label="会员中心展示活动">
+          <t-switch v-model="form.show_sidebar_activity" :custom-value="['1','0']"></t-switch>
+          <span class="tip">会员中心平台币页是否展示可领取活动</span>
+        </t-form-item>
+        <t-form-item label="购物车展示抵扣">
+          <t-switch v-model="form.show_cart_deduct" :custom-value="['1','0']"></t-switch>
+          <span class="tip">购物车/结算页展示平台币抵扣区</span>
+        </t-form-item>
+
+        <t-divider align="left">退款</t-divider>
+        <t-form-item label="退款时退还平台币">
+          <t-radio-group v-model="form.refund_policy">
+            <t-radio value="none">不退还</t-radio>
+            <t-radio value="ratio">按比例退还</t-radio>
+          </t-radio-group>
+          <div class="tip">按比例=按退款金额占实付比例退还已消耗的平台币</div>
+        </t-form-item>
+
+        <t-divider align="left">账户</t-divider>
+        <t-form-item label="代理(子账户)可使用">
+          <t-switch v-model="form.allow_sub_account" :custom-value="['1','0']"></t-switch>
+          <span class="tip">开启后子账户与主账户共享平台币余额</span>
+        </t-form-item>
+        <t-form-item label="实名认证后才可使用">
+          <t-switch v-model="form.cert_first" :custom-value="['1','0']"></t-switch>
+          <span class="tip">联动实名认证插件</span>
+        </t-form-item>
+
+        <t-divider align="left">领取限制</t-divider>
+        <t-form-item label="单笔充值赠送上限">
+          <t-input-number v-model="form.recharge_grant_cap" :min="0" :step="10" theme="normal" style="width:150px;"></t-input-number>
+          <span class="tip">{{ form.coin_name || '平台币' }}(0=不限制),充值送活动计算后的封顶值</span>
+        </t-form-item>
+        <t-form-item label="用户余额上限">
+          <t-input-number v-model="form.balance_cap" :min="0" :step="100" theme="normal" style="width:150px;"></t-input-number>
+          <span class="tip">{{ form.coin_name || '平台币' }}(0=不限制)</span>
+        </t-form-item>
+        <t-form-item label="超出余额上限时">
+          <t-radio-group v-model="form.cap_overflow">
+            <t-radio value="truncate">截断到上限</t-radio>
+            <t-radio value="skip">放弃本次发放</t-radio>
+          </t-radio-group>
+        </t-form-item>
+        <t-form-item label="同类型活动时间交叉">
+          <t-radio-group v-model="form.activity_overlay">
+            <t-radio value="0">不叠加(只取最新创建的活动)</t-radio>
+            <t-radio value="1">叠加</t-radio>
+          </t-radio-group>
+        </t-form-item>
+
+        <t-divider align="left">使用限制</t-divider>
+        <t-form-item label="可与优惠码同时使用">
+          <t-switch v-model="form.with_promo_code" :custom-value="['1','0']"></t-switch>
+          <span class="tip" v-if="form.with_promo_code=='0'">关闭时,勾选平台币将清空优惠码(互斥)</span>
+          <span class="tip" v-else>开启时,平台币与优惠码折扣可同时生效</span>
+        </t-form-item>
+        <t-form-item label="可与活动折扣同时使用">
+          <t-switch v-model="form.with_event_promotion" :custom-value="['1','0']"></t-switch>
+        </t-form-item>
+        <t-form-item label="可与用户等级折扣同时使用">
+          <t-switch v-model="form.with_client_level" :custom-value="['1','0']"></t-switch>
+          <span class="tip">关闭时平台币抵扣行将与用户等级折扣互斥(等级折扣让位)</span>
+        </t-form-item>
+        <t-form-item label="单次抵扣限制方式">
+          <t-radio-group v-model="form.limit_type">
+            <t-radio value="fixed">固定金额</t-radio>
+            <t-radio value="percent">订单比例</t-radio>
+          </t-radio-group>
+        </t-form-item>
+        <t-form-item label="单次最多抵扣" v-if="form.limit_type=='fixed'">
+          <t-input-number v-model="form.limit_fixed" :min="0" :step="10" theme="normal" style="width:150px;"></t-input-number>
+          <span class="tip">元(0=不限)</span>
+        </t-form-item>
+        <t-form-item label="单次最多抵扣比例" v-else>
+          <t-input-number v-model="form.limit_percent" :min="1" :max="100" :step="5" theme="normal" style="width:150px;"></t-input-number>
+          <span class="tip">%(订单应付金额的比例)</span>
+        </t-form-item>
+        <t-form-item label="单商品最大抵扣比例">
+          <t-input-number v-model="form.max_product_percent" :min="1" :max="100" :step="5" theme="normal" style="width:150px;"></t-input-number>
+          <span class="tip">%(按商品价格计算)</span>
+        </t-form-item>
+        <t-form-item label="单商品最多使用">
+          <t-input-number v-model="form.max_grants_per_product" :min="0" :step="1" theme="normal" style="width:150px;"></t-input-number>
+          <span class="tip">条发放记录(0=不限),扣减时按剩余有效期从短到长依次扣</span>
+        </t-form-item>
+
+        <t-divider align="left">危险操作</t-divider>
+        <t-form-item label="卸载时删除全部数据">
+          <t-switch v-model="form.uninstall_purge" :custom-value="['1','0']" @change="onPurgeChange"></t-switch>
+          <span class="tip" style="color:#d54941;">默认关闭(卸载保留配置/活动/账本,重装无损);开启后卸载将删除全部平台币数据表,不可恢复!</span>
+        </t-form-item>
+
+        <t-form-item label=" ">
+          <t-button theme="primary" :loading="saving" @click="save">保存配置</t-button>
+        </t-form-item>
+      </t-form>
+    </t-card>
+
+    <!-- 通用确认弹窗 -->
+    <t-dialog :header="confirmTitle" :visible.sync="confirmVisible" width="420" placement="center" :close-on-overlay-click="true">
+      <span style="font-size:13px;line-height:1.7;">{{ confirmBody }}</span>
+      <template slot="footer">
+        <t-button theme="primary" @click="doConfirm">确定</t-button>
+        <t-button theme="default" variant="base" @click="confirmVisible=false" style="margin-left:8px;">取消</t-button>
+      </template>
+    </t-dialog>
+  </com-config>
+</div>
+
+<!-- =======页面独有======= -->
+<script src="/plugins/addon/ouyun_coin_pro/template/admin/js/common.js?v=a"></script>
+<script src="/plugins/addon/ouyun_coin_pro/template/admin/js/setting.js?v=a"></script>

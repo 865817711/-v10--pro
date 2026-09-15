@@ -1,0 +1,140 @@
+<link rel="stylesheet" href="/plugins/addon/ouyun_coin_pro/template/admin/css/ouyun.css?v=c" />
+<!-- =======平台币pro - 用户余额======= -->
+<div id="content" class="template oycp" v-cloak>
+  <com-config>
+    <t-card class="list-card-container" style="width:100%;">
+
+      <ul class="common-tab">
+        <li><a href="/{$template_catalog}/plugin/ouyun_coin_pro/index.htm">活动配置</a></li>
+        <li><a href="/{$template_catalog}/plugin/ouyun_coin_pro/setting.htm">基础配置</a></li>
+        <li><a href="/{$template_catalog}/plugin/ouyun_coin_pro/grant.htm">发放详情</a></li>
+        <li class="active"><a href="javascript:;">用户余额</a></li>
+        <li><a href="/{$template_catalog}/plugin/ouyun_coin_pro/report.htm">数据报表</a></li>
+      </ul>
+
+      <div>
+        <div class="oycp-toolbar">
+          <t-input class="oycp-kw" v-model="keywords" placeholder="用户名/邮箱/手机号" clearable
+            @keypress.enter.native="doSearch" @clear="doSearch"></t-input>
+          <t-button theme="primary" @click="doSearch">查询</t-button>
+          <t-button theme="primary" variant="outline" style="margin-left:auto;" @click="openGrant()">发放平台币</t-button>
+          <span style="font-size:12px;color:#888;align-self:center;">点击每行「明细」查看该用户拥有的每一笔平台币(额度/剩余/领取时间/到期时间)</span>
+        </div>
+
+        <t-table row-key="id" :data="list" :columns="columns" :loading="loading"
+          :pagination="{ current: page, total: count, pageSize: limit, showJumper: true }"
+          @page-change="onPage">
+          <template slot="sortIcon">
+            <t-icon name="caret-down-small"></t-icon>
+          </template>
+          <template #user="{ row }">
+            <a :href="baseUrl+'client_detail.htm?id='+row.id" target="_blank" style="color:#0052d9;font-weight:500;">
+              {{ row.username || ('#'+row.id) }}
+            </a>
+            <div style="font-size:12px;color:#999;margin-top:2px;">{{ row.email || row.phone || '' }}</div>
+          </template>
+          <template #available="{ row }">
+            <span class="oycp-num" style="font-size:16px;font-weight:600;color:#0052d9;">{{ row.available }}</span>
+          </template>
+          <template #frozen="{ row }">
+            <span v-if="row.frozen_total*1>0" class="oycp-num" style="color:#e37318;">{{ row.frozen_total }}</span>
+            <span v-else style="color:#999;">0</span>
+          </template>
+          <template #expiring="{ row }">
+            <t-tag v-if="row.expiring*1>0" theme="warning" variant="light" size="small">{{ row.expiring }} 即将过期</t-tag>
+            <span v-else style="color:#999;">-</span>
+          </template>
+          <template #op="{ row }">
+            <t-button size="small" variant="text" theme="primary" @click="openDetail(row)">明细</t-button>
+            <t-button size="small" variant="text" theme="primary" @click="openGrant(row)">发放</t-button>
+          </template>
+        </t-table>
+      </div>
+    </t-card>
+
+    <!-- ============ 用户持币明细弹窗 ============ -->
+    <t-dialog :header="'「' + (detailUser.username || detailUser.id) + '」的平台币明细'" :visible.sync="detailVisible" width="960" :footer="false">
+      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;font-size:13px;">
+        <span>可用余额: <b style="color:#0052d9;font-size:16px;">{{ detailUser.available }}</b> {{ coinName }}</span>
+        <span v-if="detailUser.frozen_total*1>0" style="color:#e37318;">预占中: {{ detailUser.frozen_total }}</span>
+        <span style="color:#888;">正常持有笔数: {{ detailUser.grant_count }}</span>
+      </div>
+      <t-table row-key="id" :data="detailList" :columns="detailColumns" :loading="detailLoading"
+        max-height="420"
+        :pagination="{ current: dPage, total: dCount, pageSize: dLimit }" @page-change="onDPage">
+        <template #grant_amount="{ row }">
+          <span class="oycp-num" style="font-weight:600;">{{ row.amount }}</span>
+          <span style="color:#999;font-size:12px;" v-if="row.frozen*1>0"> (冻{{ row.frozen }})</span>
+        </template>
+        <template #remaining="{ row }">
+          <span class="oycp-num" :style="{color: row.remaining>0 ? '#00a870' : '#999', fontWeight:600}">{{ row.remaining }}</span>
+          <span v-if="row.amount != row.remaining && row.status=='normal'" style="font-size:11px;color:#999;"> 已用{{ (row.amount-row.remaining).toFixed(2) }}</span>
+        </template>
+        <template #valid="{ row }">
+          <div v-if="row.expire_time>0" :style="{color: row.expire_time < nowTs+7*86400 ? '#e37318':''}">
+            至 {{ fmtDate(row.expire_time) }}
+            <t-tag v-if="row.status=='normal' && row.expire_time < nowTs+7*86400" theme="warning" variant="light" size="small">7天内到期</t-tag>
+          </div>
+          <div v-else style="color:#999;">不过期</div>
+        </template>
+        <template #effective="{ row }">
+          <span v-if="row.effective_time>nowTs" style="color:#e37318;">{{ fmtDate(row.effective_time) }} 生效</span>
+          <span v-else style="color:#999;">已生效</span>
+        </template>
+        <template #status="{ row }">
+          <t-tag :theme="row.status=='normal'?'success':(row.status=='expired'?'warning':'default')" variant="light" size="small">{{ row.status_text }}</t-tag>
+        </template>
+        <template #source="{ row }">
+          <span style="font-size:12px;">{{ row.source_text }}</span>
+        </template>
+        <template #op="{ row }">
+          <t-tooltip v-if="row.status=='normal'" :content="row.frozen*1>0 ? '有预占(未支付订单在途),不可撤销' : '撤回这笔,剩余额度立即失效'">
+            <t-button size="small" variant="text" theme="danger" :disabled="row.frozen*1>0" @click="revokeGrant(row)">撤回</t-button>
+          </t-tooltip>
+          <span v-else style="color:#999;font-size:12px;">-</span>
+        </template>
+      </t-table>
+    </t-dialog>
+
+    <!-- 手动发放弹窗 -->
+    <t-dialog header="发放平台币" :visible.sync="grantVisible" width="520">
+      <t-form label-align="right" :label-width="110">
+        <t-form-item label="用户" required>
+          <com-choose-user :key="'cu'+grantKey" @changeuser="changeUser" :check-id="grantForm.client_id"
+            :pre-placeholder="'输入关键词搜索用户'">
+          </com-choose-user>
+        </t-form-item>
+        <t-form-item label="发放额度" required>
+          <t-input-number v-model="grantForm.amount" :min="0.01" :step="10" theme="normal" style="width:160px;"></t-input-number>
+          <span style="margin-left:8px;color:#888;">{{ coinName }}</span>
+        </t-form-item>
+        <t-form-item label="有效期">
+          <t-input-number v-model="grantForm.valid_days" :min="0" :step="1" theme="normal" style="width:140px;"></t-input-number>
+          <span style="margin-left:8px;color:#888;font-size:12px;">天(0=不限)</span>
+        </t-form-item>
+        <t-form-item label="备注">
+          <t-input v-model="grantForm.remark" :maxlength="200" style="width:340px;" placeholder="如:活动补偿"></t-input>
+        </t-form-item>
+      </t-form>
+      <template slot="footer">
+        <t-button theme="primary" :loading="grantSubmitting" @click="doGrant">发放</t-button>
+        <t-button theme="default" variant="base" @click="grantVisible=false" style="margin-left:8px;">取消</t-button>
+      </template>
+    </t-dialog>
+
+    <!-- 通用确认弹窗 -->
+    <t-dialog :header="confirmTitle" :visible.sync="confirmVisible" width="420" placement="center" :close-on-overlay-click="true">
+      <span style="font-size:13px;line-height:1.7;">{{ confirmBody }}</span>
+      <template slot="footer">
+        <t-button theme="primary" @click="doConfirm">确定</t-button>
+        <t-button theme="default" variant="base" @click="confirmVisible=false" style="margin-left:8px;">取消</t-button>
+      </template>
+    </t-dialog>
+  </com-config>
+</div>
+
+<!-- =======页面独有======= -->
+<script src="/plugins/addon/ouyun_coin_pro/template/admin/js/common.js?v=a"></script>
+<script src="/{$template_catalog}/template/{$themes}/api/common.js"></script>
+<script src="/{$template_catalog}/template/{$themes}/components/comChooseUser/comChooseUser.js"></script>
+<script src="/plugins/addon/ouyun_coin_pro/template/admin/js/client.js?v=d"></script>

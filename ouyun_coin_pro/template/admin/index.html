@@ -1,0 +1,282 @@
+<link rel="stylesheet" href="/plugins/addon/ouyun_coin_pro/template/admin/css/ouyun.css?v=c" />
+<!-- =======平台币pro - 活动配置======= -->
+<div id="content" class="template oycp" v-cloak>
+  <com-config>
+    <t-card class="list-card-container">
+
+      <ul class="common-tab">
+        <li class="active"><a href="javascript:;">活动配置</a></li>
+        <li><a href="/{$template_catalog}/plugin/ouyun_coin_pro/setting.htm">基础配置</a></li>
+        <li><a href="/{$template_catalog}/plugin/ouyun_coin_pro/grant.htm">发放详情
+          <t-badge :count="grantBadge" size="small" v-if="grantBadge>0"></t-badge>
+        </a></li>
+        <li><a href="/{$template_catalog}/plugin/ouyun_coin_pro/client.htm">用户余额</a></li>
+        <li><a href="/{$template_catalog}/plugin/ouyun_coin_pro/report.htm">数据报表</a></li>
+      </ul>
+
+      <div>
+        <div class="oycp-toolbar">
+          <t-input class="oycp-kw" v-model="filter.keywords" placeholder="活动名称/编码/备注" clearable
+            @keypress.enter.native="doSearch" @clear="doSearch"></t-input>
+          <t-select class="oycp-sel" v-model="filter.type" placeholder="活动类型" clearable @change="doSearch">
+            <t-option v-for="(txt,val) in typeOptions" :key="val" :value="val" :label="txt"></t-option>
+          </t-select>
+          <t-select class="oycp-sel" v-model="filter.status" placeholder="状态" clearable @change="doSearch">
+            <t-option :value="1" label="启用中"></t-option>
+            <t-option :value="0" label="已结束"></t-option>
+          </t-select>
+          <t-date-range-picker class="oycp-range" allow-input clearable v-model="filter.range"
+            :placeholder="['开始日期','结束日期']" @change="doSearch"></t-date-range-picker>
+          <t-button theme="primary" @click="doSearch">查询</t-button>
+          <t-button theme="primary" style="margin-left:auto;" @click="openEdit(null)">新增活动</t-button>
+          <t-button theme="danger" variant="outline" :disabled="!selected.length" @click="batchDelete">批量删除({{selected.length}})</t-button>
+        </div>
+
+        <t-table row-key="id" :data="list" :columns="columns" :loading="loading"
+          :selected-row-keys="selected" @select-change="(keys)=>selected=keys"
+          :pagination="{ current: page, total: count, pageSize: limit, showJumper: true }"
+          @page-change="onPage" style="margin-top:4px;">
+          <template #name="{ row }">
+            <div class="oycp-ribbon-wrap" style="padding-right:56px;">
+              <div style="font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" :title="row.name">{{ row.name }}</div>
+              <div style="font-size:12px;color:#999;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" v-if="row.remark" :title="row.remark">{{ row.remark }}</div>
+              <span v-if="row.running" class="oycp-ribbon-tag">活动中</span>
+            </div>
+          </template>
+          <template #code="{ row }">
+            <span class="oycp-code" @click="copyText(row.code)" :title="'点击复制 '+row.code">{{ row.code }}</span>
+          </template>
+          <template #give="{ row }">
+            <span v-if="row.type=='recharge'||row.type=='consume_single'||row.type=='order_buy'">
+              {{ row.grant_type=='ratio' ? ('比例'+(row.rules_data.percent||0)+'%') : (gradText(row.rules_data.gradient)) }}
+            </span>
+            <span v-else-if="row.type=='consume_total'">{{ gradText(row.rules_data.tiers,'满') }}</span>
+            <span v-else-if="row.type=='attr'">{{ row.rules_data.give }}币/{{ row.rules_data.cycle_days>0?('每'+row.rules_data.cycle_days+'天'):'一次性' }}</span>
+            <span v-else-if="row.type=='signin'">{{ row.rules_data.base }}币起/天</span>
+            <span v-else>{{ row.rules_data.give || 0 }}币</span>
+          </template>
+          <template #scope="{ row }">
+            <span v-if="row.product_scope==1" style="font-size:12px;">指定{{ (row.product_ids_data||[]).length }}个商品</span>
+            <span v-else style="color:#999;">不限制</span>
+          </template>
+          <template #valid="{ row }">
+            {{ row.valid_days>0 ? row.valid_days+'天' : '不限制' }}
+            <span v-if="row.effective_days>0" style="color:#999;font-size:12px;">({{ row.effective_days }}天后生效)</span>
+          </template>
+          <template #time="{ row }">
+            <div style="font-size:12px;line-height:1.8;">
+              {{ fmtDate(row.start_time) }} ~ {{ row.end_time ? fmtDate(row.end_time) : '不限制' }}
+            </div>
+          </template>
+          <template #status="{ row }">
+            <t-switch :value="row.status" :custom-value="[1, 0]" size="small" @change="(v)=>toggleStatus(row,v)"></t-switch>
+            <span style="margin-left:6px;font-size:12px;">{{ row.status==1?'启用中':'已结束' }}</span>
+          </template>
+          <template #op="{ row }">
+            <t-button size="small" variant="text" theme="primary" @click="openEdit(row)">编辑</t-button>
+            <t-button size="small" variant="text" theme="primary" @click="gotoGrant(row)">发放</t-button>
+            <t-button size="small" variant="text" theme="danger" @click="del(row)">删除</t-button>
+          </template>
+        </t-table>
+      </div>
+    </t-card>
+
+    <!-- ============ 活动编辑弹窗 ============ -->
+    <t-dialog :header="form.id ? '编辑活动' : '新增活动'" :visible.sync="editVisible" width="760" :footer="false">
+      <t-form label-align="right" :label-width="150" style="max-height:64vh;overflow-y:auto;padding-right:8px;">
+        <t-form-item label="活动名称" required>
+          <t-input v-model="form.name" placeholder="如:开年充值送" :maxlength="90" style="width:420px;"></t-input>
+        </t-form-item>
+        <t-form-item label="活动编码" v-if="form.id">
+          <span class="oycp-code" @click="copyText(form.code)">{{ form.code }}</span>
+          <span style="color:#999;font-size:12px;margin-left:8px;">(点击复制)</span>
+        </t-form-item>
+        <t-form-item label="活动类型" required>
+          <t-select v-model="form.type" style="width:220px;" :disabled="!!form.id" @change="onTypeChange">
+            <t-option v-for="(txt,val) in typeOptions" :key="val" :value="val" :label="txt"></t-option>
+          </t-select>
+          <div style="font-size:12px;color:#888;margin-top:4px;width:460px;">{{ typeDesc[form.type] }}</div>
+        </t-form-item>
+
+        <!-- 标准送 -->
+        <template v-if="form.type=='standard'">
+          <t-form-item label="赠送额度" required>
+            <t-input-number v-model="form.rules.give" :min="0.01" :step="1" theme="normal" style="width:160px;"></t-input-number>
+            <span class="unit">平台币/次</span>
+          </t-form-item>
+        </template>
+
+        <!-- 充值送/单笔消费送/订购送: 梯度或比例 -->
+        <template v-if="['recharge','consume_single','order_buy'].includes(form.type)">
+          <t-form-item label="赠送类型" required>
+            <t-radio-group v-model="form.grant_type">
+              <t-radio value="gradient">梯度赠送</t-radio>
+              <t-radio value="ratio">比例赠送</t-radio>
+            </t-radio-group>
+          </t-form-item>
+          <t-form-item :label="form.type=='recharge'?'充值梯度':(form.type=='order_buy'?'订购金额梯度':'消费额门槛')" v-if="form.grant_type=='gradient'">
+            <div>
+              <div class="oycp-grad-row" v-for="(g,i) in form.rules.gradient" :key="i">
+                <span style="color:#666;font-size:13px;">{{ form.type=='recharge'?'充':'满' }}</span>
+                <t-input-number v-model="g.full" :min="0.01" :step="10" theme="normal" style="width:130px;"></t-input-number>
+                <span style="color:#666;font-size:13px;">元 送</span>
+                <t-input-number v-model="g.give" :min="0.01" :step="1" theme="normal" style="width:110px;"></t-input-number>
+                <span style="color:#666;font-size:13px;">平台币</span>
+                <t-button size="small" variant="text" theme="danger" @click="form.rules.gradient.splice(i,1)">删除</t-button>
+              </div>
+              <t-button theme="primary" variant="outline" size="small" @click="form.rules.gradient.push({full:100,give:10})">+ 添加一档</t-button>
+              <div style="font-size:12px;color:#888;margin-top:4px;">梯度按门槛从低到高取满足条件的最高档,赠送额单位为平台币</div>
+            </div>
+          </t-form-item>
+          <t-form-item label="赠送比例" v-if="form.grant_type=='ratio'">
+            <t-input-number v-model="form.rules.percent" :min="0.01" :max="100" :step="1" theme="normal" style="width:140px;"></t-input-number>
+            <span class="unit">%</span>
+            <span style="color:#888;font-size:12px;margin-left:8px;">按金额的百分比赠送(等值平台币)</span>
+          </t-form-item>
+        </template>
+
+        <!-- 累计消费送 -->
+        <template v-if="form.type=='consume_total'">
+          <t-form-item label="累计消费梯度" required>
+            <div>
+              <div class="oycp-grad-row" v-for="(g,i) in form.rules.tiers" :key="i">
+                <span style="color:#666;font-size:13px;">累计满</span>
+                <t-input-number v-model="g.full" :min="0.01" :step="100" theme="normal" style="width:140px;"></t-input-number>
+                <span style="color:#666;font-size:13px;">元 送</span>
+                <t-input-number v-model="g.give" :min="0.01" :step="10" theme="normal" style="width:110px;"></t-input-number>
+                <span style="color:#666;font-size:13px;">平台币</span>
+                <t-button size="small" variant="text" theme="danger" @click="form.rules.tiers.splice(i,1)">删除</t-button>
+              </div>
+              <t-button theme="primary" variant="outline" size="small" @click="form.rules.tiers.push({full:1000,give:50})">+ 添加一档</t-button>
+              <div style="font-size:12px;color:#888;margin-top:4px;">累计有效消费(不含余额支付与平台币抵扣部分)每档一次性发放</div>
+            </div>
+          </t-form-item>
+        </template>
+
+        <!-- 属性送 -->
+        <template v-if="form.type=='attr'">
+          <t-form-item label="赠送目标" required>
+            <div style="width:480px;">
+              <t-checkbox v-model="form.rules.targets" value="new_register" :checked-props="{disabled:levelOptions.length==0}">新注册用户</t-checkbox>
+              <t-divider align="left" style="margin:6px 0;font-size:12px;">指定用户等级(周期性发放)</t-divider>
+              <t-checkbox-group v-model="form.rules.targets" v-if="levelOptions.length">
+                <t-checkbox v-for="lv in levelOptions" :key="'lv'+lv.id" :value="String(lv.id)">{{ lv.name }}</t-checkbox-group>
+              </t-checkbox-group>
+              <div v-else style="font-size:12px;color:#999;">未检测到用户等级插件或无等级数据</div>
+            </div>
+          </t-form-item>
+          <t-form-item label="赠送额度" required>
+            <t-input-number v-model="form.rules.give" :min="0.01" :step="1" theme="normal" style="width:160px;"></t-input-number>
+            <span class="unit">平台币</span>
+          </t-form-item>
+          <t-form-item label="发放周期">
+            <t-input-number v-model="form.rules.cycle_days" :min="0" :step="1" theme="normal" style="width:140px;"></t-input-number>
+            <span class="unit">天/次</span>
+            <span style="color:#888;font-size:12px;margin-left:8px;">0=一次性(仅注册送);N=每N天给等级用户发放一次(每日任务检查)</span>
+          </t-form-item>
+        </template>
+
+        <!-- 签到送 -->
+        <template v-if="form.type=='signin'">
+          <t-form-item label="基础奖励" required>
+            <t-input-number v-model="form.rules.base" :min="0.01" :step="1" theme="normal" style="width:140px;"></t-input-number>
+            <span class="unit">平台币/天</span>
+          </t-form-item>
+          <t-form-item label="连续签到递增">
+            <t-input-number v-model="form.rules.daily_inc" :min="0" :step="0.5" theme="normal" style="width:140px;"></t-input-number>
+            <span class="unit">平台币/天</span>
+            <span style="color:#888;font-size:12px;margin-left:8px;">连续第N天奖励 = 基础 + (N-1)×递增</span>
+          </t-form-item>
+          <t-form-item label="单日封顶">
+            <t-input-number v-model="form.rules.max" :min="0" :step="1" theme="normal" style="width:140px;"></t-input-number>
+            <span class="unit">平台币(0=不封顶)</span>
+          </t-form-item>
+        </template>
+
+        <!-- 定向送提示 -->
+        <t-form-item label=" " v-if="form.type=='target'">
+          <span style="font-size:12px;color:#e37318;">定向送:保存后在「发放详情」页选择用户手动发放,发放的币只能用于下方指定的商品</span>
+        </t-form-item>
+
+        <t-divider align="left" style="margin:10px 0;">使用限制</t-divider>
+
+        <t-form-item label="适用商品">
+          <t-radio-group v-model="form.product_scope">
+            <t-radio :value="0">不限制(全部商品)</t-radio>
+            <t-radio :value="1">指定商品</t-radio>
+          </t-radio-group>
+        </t-form-item>
+        <t-form-item label="选择商品" v-if="form.product_scope==1">
+          <com-tree-select :multiple="true" :value="form.product_ids_data" @choosepro="choosePro"
+            :pre-placeholder="'请选择商品'" :all-products="productTree" :product="proList" :show-all="true"
+            style="width:480px;">
+          </com-tree-select>
+        </t-form-item>
+
+        <t-form-item label="使用场景">
+          <t-checkbox-group v-model="sceneArr" style="width:480px;">
+            <t-checkbox value="host">订阅(新购)</t-checkbox>
+            <t-checkbox value="renew">续费</t-checkbox>
+            <t-checkbox value="upgrade">升降级</t-checkbox>
+            <t-checkbox value="on_demand_to_recurring">按需转包年包月</t-checkbox>
+          </t-checkbox-group>
+          <div style="font-size:12px;color:#888;width:460px;">不勾选任何场景=全部场景可用;勾选后仅勾选场景可使用该活动发放的平台币</div>
+        </t-form-item>
+
+        <t-form-item label="周期限制">
+          <t-switch v-model="form.cycle_limit_switch" :custom-value="[1,0]"></t-switch>
+          <t-checkbox-group v-if="form.cycle_limit_switch==1" v-model="cycleArr" style="width:480px;margin-top:6px;">
+            <t-checkbox v-for="(txt,val) in cycleOptions" :key="val" :value="val">{{ txt }}</t-checkbox>
+          </t-checkbox-group>
+          <span v-else style="color:#888;font-size:12px;margin-left:8px;">不限计费周期</span>
+        </t-form-item>
+
+        <t-divider align="left" style="margin:10px 0;">有效期与生效</t-divider>
+
+        <t-form-item label="平台币有效期">
+          <t-input-number v-model="form.valid_days" :min="0" :step="1" theme="normal" style="width:140px;"></t-input-number>
+          <span class="unit">天(0=不限制)</span>
+          <span style="color:#888;font-size:12px;margin-left:8px;">扣减时按剩余有效期从短到长依次扣</span>
+        </t-form-item>
+        <t-form-item label="生效规则">
+          <t-input-number v-model="form.effective_days" :min="0" :step="1" theme="normal" style="width:140px;"></t-input-number>
+          <span class="unit">天后生效(0=立即生效)</span>
+        </t-form-item>
+
+        <t-divider align="left" style="margin:10px 0;">活动时间与状态</t-divider>
+        <t-form-item label="活动开始时间">
+          <t-date-picker v-model="form.start_time" enable-time-picker clearable style="width:220px;"></t-date-picker>
+        </t-form-item>
+        <t-form-item label="活动结束时间">
+          <t-date-picker v-model="form.end_time" enable-time-picker clearable style="width:220px;"></t-date-picker>
+          <span style="color:#888;font-size:12px;margin-left:8px;">留空=不限制</span>
+        </t-form-item>
+        <t-form-item label="状态">
+          <t-switch v-model="form.status" :custom-value="[1,0]"></t-switch>
+          <span style="margin-left:8px;font-size:12px;">{{ form.status==1?'启用中':'已结束' }}</span>
+        </t-form-item>
+        <t-form-item label="备注">
+          <t-textarea v-model="form.remark" :maxlength="200" style="width:460px;" placeholder="备注信息"></t-textarea>
+        </t-form-item>
+        <t-form-item label=" ">
+          <t-button theme="primary" :loading="submitLoading" @click="save">保存</t-button>
+          <t-button theme="default" variant="base" style="margin-left:8px;" @click="editVisible=false">取消</t-button>
+        </t-form-item>
+      </t-form>
+    </t-dialog>
+
+    <!-- 通用确认弹窗 -->
+    <t-dialog :header="confirmTitle" :visible.sync="confirmVisible" width="420" placement="center" :close-on-overlay-click="true">
+      <span style="font-size:13px;line-height:1.7;">{{ confirmBody }}</span>
+      <template slot="footer">
+        <t-button theme="primary" @click="doConfirm">确定</t-button>
+        <t-button theme="default" variant="base" @click="confirmVisible=false" style="margin-left:8px;">取消</t-button>
+      </template>
+    </t-dialog>
+  </com-config>
+</div>
+
+<!-- =======页面独有======= -->
+<script src="/plugins/addon/ouyun_coin_pro/template/admin/js/common.js?v=a"></script>
+<script src="/{$template_catalog}/template/{$themes}/components/comTreeSelect/comTreeSelect.js"></script>
+<script src="/plugins/addon/ouyun_coin_pro/template/admin/js/index.js?v=e"></script>

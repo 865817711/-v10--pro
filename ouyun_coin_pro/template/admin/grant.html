@@ -1,0 +1,171 @@
+<link rel="stylesheet" href="/plugins/addon/ouyun_coin_pro/template/admin/css/ouyun.css?v=c" />
+<!-- =======平台币pro - 发放详情======= -->
+<div id="content" class="template oycp" v-cloak>
+  <com-config>
+    <t-card class="list-card-container" style="width:100%;">
+
+      <ul class="common-tab">
+        <li><a href="/{$template_catalog}/plugin/ouyun_coin_pro/index.htm">活动配置</a></li>
+        <li><a href="/{$template_catalog}/plugin/ouyun_coin_pro/setting.htm">基础配置</a></li>
+        <li class="active"><a href="javascript:;">发放详情</a></li>
+        <li><a href="/{$template_catalog}/plugin/ouyun_coin_pro/client.htm">用户余额</a></li>
+        <li><a href="/{$template_catalog}/plugin/ouyun_coin_pro/report.htm">数据报表</a></li>
+      </ul>
+
+      <!-- 子页签: 发放记录 / 全量流水 -->
+      <t-tabs v-model="tab">
+        <t-tab-panel value="grant" label="发放记录">
+          <div class="oycp-toolbar" style="margin-top:10px;">
+            <t-select class="oycp-sel" v-model="gf.activity_id" placeholder="所属活动" clearable @change="doSearch" style="width:180px;">
+              <t-option v-for="a in activities" :key="a.id" :value="a.id" :label="'#'+a.id+' '+a.name"></t-option>
+            </t-select>
+            <t-select class="oycp-sel" v-model="gf.type" placeholder="活动类型" clearable @change="doSearch">
+              <t-option v-for="(txt,val) in typeOptions" :key="val" :value="val" :label="txt"></t-option>
+            </t-select>
+            <t-select class="oycp-sel" v-model="gf.status" placeholder="状态" clearable @change="doSearch">
+              <t-option value="normal" label="正常"></t-option>
+              <t-option value="expired" label="已过期"></t-option>
+              <t-option value="revoked" label="已撤销"></t-option>
+            </t-select>
+            <t-select class="oycp-sel" v-model="gf.source" placeholder="发放方式" clearable @change="doSearch">
+              <t-option value="manual" label="手动发放"></t-option>
+              <t-option value="claim" label="自主领取"></t-option>
+              <t-option value="system" label="系统发放"></t-option>
+            </t-select>
+            <t-input class="oycp-kw" v-model="gf.keywords" placeholder="用户名/邮箱/手机号/备注" clearable
+              @keypress.enter.native="doSearch" @clear="doSearch"></t-input>
+            <t-button theme="primary" @click="doSearch">查询</t-button>
+            <t-button theme="primary" variant="outline" @click="openGrant" style="margin-left:auto;">发放</t-button>
+            <t-button theme="primary" variant="outline" @click="importVisible=true">批量导入</t-button>
+            <t-button theme="danger" variant="outline" :disabled="!selected.length" @click="batchRevoke">批量撤销({{selected.length}})</t-button>
+          </div>
+
+          <t-table row-key="id" :data="gList" :columns="gColumns" :loading="gLoading"
+            :selected-row-keys="selected" @select-change="(keys)=>selected=keys"
+            :pagination="{ current: gPage, total: gCount, pageSize: gLimit, showJumper: true }"
+            @page-change="onGPage">
+            <template #client="{ row }">
+              <a :href="baseUrl+'client_detail.htm?id='+row.client_id" target="_blank" style="color:#0052d9;">
+                {{ row.username || ('#'+row.client_id) }}
+              </a>
+            </template>
+            <template #amount="{ row }">
+              <span class="oycp-num">{{ row.amount }}</span>
+              <span style="color:#999;font-size:12px;"> (余{{ row.remaining }}<template v-if="row.frozen>0">,冻{{ row.frozen }}</template>)</span>
+            </template>
+            <template #valid="{ row }">
+              <div v-if="row.expire_time>0">至 {{ fmtDate(row.expire_time) }}</div>
+              <div v-else style="color:#999;">不限制</div>
+            </template>
+            <template #status="{ row }">
+              <t-tag :theme="row.status=='normal'?'success':(row.status=='expired'?'warning':'default')" variant="light" size="small">{{ row.status_text }}</t-tag>
+            </template>
+            <template #source="{ row }">
+              <span style="font-size:12px;">{{ row.source_text }}</span>
+            </template>
+            <template #op="{ row }">
+              <t-button size="small" variant="text" theme="danger" v-if="row.status=='normal'" @click="revokeOne(row)">撤销</t-button>
+            </template>
+          </t-table>
+        </t-tab-panel>
+
+        <t-tab-panel value="log" label="全量流水">
+          <div class="oycp-toolbar" style="margin-top:10px;">
+            <t-select class="oycp-sel" v-model="lf.type" placeholder="类型" clearable @change="doSearch">
+              <t-option value="grant" label="发放"></t-option>
+              <t-option value="consume" label="消费"></t-option>
+              <t-option value="refund" label="退款退还"></t-option>
+              <t-option value="expire" label="过期"></t-option>
+              <t-option value="revoke" label="撤销"></t-option>
+            </t-select>
+            <t-input class="oycp-kw" v-model="lf.keywords" placeholder="用户名/备注" clearable
+              @keypress.enter.native="doSearch" @clear="doSearch"></t-input>
+            <t-button theme="primary" @click="doSearch">查询</t-button>
+          </div>
+          <t-table row-key="id" :data="lList" :columns="lColumns" :loading="lLoading"
+            :pagination="{ current: lPage, total: lCount, pageSize: lLimit }" @page-change="onLPage">
+            <template #client="{ row }">
+              <a :href="baseUrl+'client_detail.htm?id='+row.client_id" target="_blank" style="color:#0052d9;">{{ row.username || ('#'+row.client_id) }}</a>
+            </template>
+            <template #amount="{ row }">
+              <span :style="{color: row.amount>=0?'#00a870':'#d54941'}" class="oycp-num">{{ row.amount>=0?'+':'' }}{{ row.amount }}</span>
+            </template>
+          </t-table>
+        </t-tab-panel>
+      </t-tabs>
+    </t-card>
+
+    <!-- ============ 手动发放弹窗 ============ -->
+    <t-dialog header="发放平台币" :visible.sync="grantVisible" width="520">
+      <t-form label-align="right" :label-width="120">
+        <t-form-item label="用户" required>
+          <com-choose-user :key="'gu'+grantKey" @changeuser="changeUser"
+            :pre-placeholder="'输入关键词搜索用户'">
+          </com-choose-user>
+        </t-form-item>
+        <t-form-item label="发放额度" required>
+          <t-input-number v-model="grantForm.amount" :min="0.01" :step="10" theme="normal" style="width:160px;"></t-input-number>
+          <span class="unit">平台币</span>
+        </t-form-item>
+        <t-form-item label="关联活动">
+          <t-select v-model="grantForm.activity_id" clearable style="width:320px;" placeholder="不关联">
+            <t-option v-for="a in activities" :key="a.id" :value="a.id" :label="'#'+a.id+' '+a.name+'('+a.type_text+')'"></t-option>
+          </t-select>
+          <div style="font-size:12px;color:#888;">关联后按活动的生效规则/有效期/商品限制发放;定向送活动建议必选</div>
+        </t-form-item>
+        <t-form-item label="有效期">
+          <t-input-number v-model="grantForm.valid_days" :min="0" :step="1" theme="normal" style="width:140px;"></t-input-number>
+          <span class="unit">天(0=不限;关联活动时优先按活动配置)</span>
+        </t-form-item>
+        <t-form-item label="备注">
+          <t-input v-model="grantForm.remark" :maxlength="200" style="width:320px;" placeholder="如:活动补偿"></t-input>
+        </t-form-item>
+      </t-form>
+      <template slot="footer">
+        <t-button theme="primary" :loading="submitLoading" @click="doGrant">发放</t-button>
+        <t-button theme="default" variant="base" @click="grantVisible=false" style="margin-left:8px;">取消</t-button>
+      </template>
+    </t-dialog>
+
+    <!-- ============ 批量导入弹窗 ============ -->
+    <t-dialog header="批量导入发放" :visible.sync="importVisible" width="620">
+      <p style="font-size:12px;color:#888;line-height:1.8;margin-top:0;">
+        每行一条:<code>账号,额度,备注</code>(账号支持用户名/邮箱/手机号;额度单位=平台币)。<br>
+        示例:<br><code>13800000001,100,新用户活动<br>test@qq.com,50,</code>
+      </p>
+      <t-textarea v-model="importCsv" :autosize="{minRows:8,maxRows:16}" placeholder="粘贴CSV文本,或上传CSV文件"></t-textarea>
+      <div style="margin-top:8px;">
+        <input type="file" accept=".csv,.txt" @change="onCsvFile" style="font-size:12px;" />
+      </div>
+      <t-form label-align="right" :label-width="120" style="margin-top:10px;">
+        <t-form-item label="有效期">
+          <t-input-number v-model="importValidDays" :min="0" :step="1" theme="normal" style="width:140px;"></t-input-number>
+          <span class="unit">天(0=不限)</span>
+        </t-form-item>
+      </t-form>
+      <div v-if="importResult" style="margin-top:10px;background:#f5f5f5;border-radius:4px;padding:8px 12px;font-size:12px;line-height:1.8;">
+        {{ importResult.msg }}
+        <div v-for="f in importResult.fail" :key="f" style="color:#d54941;">{{ f }}</div>
+      </div>
+      <template slot="footer">
+        <t-button theme="primary" :loading="submitLoading" @click="doImport">导入发放</t-button>
+        <t-button theme="default" variant="base" @click="importVisible=false" style="margin-left:8px;">关闭</t-button>
+      </template>
+    </t-dialog>
+
+    <!-- 通用确认弹窗 -->
+    <t-dialog :header="confirmTitle" :visible.sync="confirmVisible" width="420" placement="center" :close-on-overlay-click="true">
+      <span style="font-size:13px;line-height:1.7;">{{ confirmBody }}</span>
+      <template slot="footer">
+        <t-button theme="primary" @click="doConfirm">确定</t-button>
+        <t-button theme="default" variant="base" @click="confirmVisible=false" style="margin-left:8px;">取消</t-button>
+      </template>
+    </t-dialog>
+  </com-config>
+</div>
+
+<!-- =======页面独有======= -->
+<script src="/plugins/addon/ouyun_coin_pro/template/admin/js/common.js?v=a"></script>
+<script src="/{$template_catalog}/template/{$themes}/api/common.js"></script>
+<script src="/{$template_catalog}/template/{$themes}/components/comChooseUser/comChooseUser.js"></script>
+<script src="/plugins/addon/ouyun_coin_pro/template/admin/js/grant.js?v=b"></script>

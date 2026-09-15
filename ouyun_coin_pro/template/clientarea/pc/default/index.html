@@ -1,0 +1,104 @@
+<!-- 页面独有样式 -->
+<link rel="stylesheet" href="/plugins/addon/ouyun_coin_pro/template/clientarea/pc/default/css/coin.css?v=b" />
+</head>
+
+<body>
+  <!-- mounted之前显示 -->
+  <div id="mainLoading" style="display:flex;justify-content:center;padding:80px 0;color:#999;">加载中...</div>
+<!-- =======平台币pro - 会员中心主页======= -->
+<div class="oycoin template" v-cloak>
+  <el-container>
+    <aside-menu></aside-menu>
+    <el-container>
+      <top-menu></top-menu>
+      <el-main class="oycoin-main">
+        <!-- 余额卡 -->
+        <div class="oycoin-hero">
+          <div class="oycoin-hero-left">
+            <div class="lb">{{ data.coin_name || '平台币' }}余额</div>
+            <div class="vl">{{ balance.available || '0.00' }}</div>
+            <div class="tips">
+              <span v-if="balance.frozen*1>0">预占中 {{ balance.frozen }}</span>
+              <el-tooltip v-if="balance.expiring_amount*1>0" placement="top">
+                <div slot="content">
+                  <div v-for="e in balance.expiring" :key="e.id">{{ fmtDate(e.expire_time) }} 到期:{{ e.amount }}</div>
+                </div>
+                <span class="warn">即将过期 {{ balance.expiring_amount }} <i class="el-icon-warning-outline"></i></span>
+              </el-tooltip>
+              <span v-if="rate!=1">汇率:1元={{ rate }}{{ data.coin_name||'平台币' }}</span>
+            </div>
+          </div>
+          <div class="oycoin-hero-right">
+            <!-- 每日签到 -->
+            <div class="oycoin-signin" v-if="signin.enabled">
+              <div class="t">连续签到 <b>{{ signin.streak }}</b> 天 / 累计 {{ signin.total }} 天</div>
+              <el-button type="primary" round :disabled="signin.signed_today==1" :loading="signinLoading" @click="doSignin">
+                {{ signin.signed_today==1 ? '今日已签到' : ('签到 +' + signin.next_amount) }}
+              </el-button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 可领取活动 -->
+        <el-card class="oycoin-card" v-if="claimable.length" shadow="never">
+          <div slot="header"><b>可领取</b></div>
+          <div class="oycoin-claim-list">
+            <div class="oycoin-claim" v-for="a in claimable" :key="a.id">
+              <div class="info">
+                <div class="name">{{ a.name }}</div>
+                <div class="sub">送 {{ a.amount }} {{ data.coin_name||'平台币' }}
+                  <template v-if="a.end_time"> · {{ fmtDate(a.end_time) }} 截止</template>
+                </div>
+              </div>
+              <el-button type="primary" size="small" round :disabled="a.claimed==1" @click="doClaim(a)">
+                {{ a.claimed==1 ? '已领取' : '立即领取' }}
+              </el-button>
+            </div>
+          </div>
+        </el-card>
+
+        <!-- 说明 -->
+        <el-card class="oycoin-card" v-if="description" shadow="never">
+          <div slot="header"><b>{{ data.coin_name||'平台币' }}说明</b></div>
+          <div class="oycoin-desc" v-html="description"></div>
+        </el-card>
+
+        <!-- 明细 -->
+        <el-card class="oycoin-card" shadow="never">
+          <div slot="header" class="oycoin-log-head">
+            <b>明细</b>
+            <el-radio-group v-model="logType" size="small" @change="loadLogs">
+              <el-radio-button label="">全部</el-radio-button>
+              <el-radio-button label="grant">发放</el-radio-button>
+              <el-radio-button label="consume">消费</el-radio-button>
+              <el-radio-button label="refund">退款退还</el-radio-button>
+              <el-radio-button label="expire">过期</el-radio-button>
+              <el-radio-button label="revoke">撤销</el-radio-button>
+            </el-radio-group>
+          </div>
+          <el-table :data="logs" v-loading="logLoading" style="width:100%;">
+            <el-table-column prop="type_text" label="类型" width="100">
+              <template slot-scope="s">
+                <span :class="'oycoin-tag-'+s.row.type">{{ s.row.type_text }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="变动" width="120">
+              <template slot-scope="s">
+                <span :style="{color:s.row.amount>=0?'#00a870':'#d54941'}">{{ s.row.amount>=0?'+':'' }}{{ s.row.amount }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="remark" label="说明" min-width="220"></el-table-column>
+            <el-table-column label="时间" width="170">
+              <template slot-scope="s">{{ fmtTime(s.row.create_time) }}</template>
+            </el-table-column>
+          </el-table>
+          <el-pagination v-if="logCount>logLimit" style="margin-top:12px;text-align:right;"
+            layout="prev, pager, next" :total="logCount" :page-size="logLimit"
+            :current-page.sync="logPage" @current-change="loadLogs"></el-pagination>
+        </el-card>
+      </el-main>
+    </el-container>
+  </el-container>
+</div>
+
+<script src="/plugins/addon/ouyun_coin_pro/template/clientarea/pc/default/js/coin.js?v=d"></script>

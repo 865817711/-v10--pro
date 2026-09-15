@@ -1,0 +1,58 @@
+<link rel="stylesheet" href="/plugins/addon/ouyun_coin_pro/template/admin/css/ouyun.css?v=c" />
+<!-- =======平台币pro - 数据报表======= -->
+<div id="content" class="template oycp" v-cloak>
+  <com-config>
+    <t-card class="list-card-container" style="width:100%;">
+
+      <ul class="common-tab">
+        <li><a href="/{$template_catalog}/plugin/ouyun_coin_pro/index.htm">活动配置</a></li>
+        <li><a href="/{$template_catalog}/plugin/ouyun_coin_pro/setting.htm">基础配置</a></li>
+        <li><a href="/{$template_catalog}/plugin/ouyun_coin_pro/grant.htm">发放详情</a></li>
+        <li><a href="/{$template_catalog}/plugin/ouyun_coin_pro/client.htm">用户余额</a></li>
+        <li class="active"><a href="javascript:;">数据报表</a></li>
+      </ul>
+
+      <div class="oycp-toolbar" style="margin-top:10px;">
+        <t-date-range-picker class="oycp-range" allow-input clearable v-model="range"
+          :placeholder="['开始日期','结束日期']" @change="load"></t-date-range-picker>
+        <t-button theme="primary" @click="load">查询</t-button>
+        <t-button theme="primary" variant="outline" @click="exportCsv" :loading="exporting">
+          导出CSV
+        </t-button>
+        <span style="font-size:12px;color:#888;">最多回溯30天,导出当前筛选范围的按日明细</span>
+      </div>
+
+      <!-- 总览 -->
+      <div class="oycp-sum">
+        <div class="item">
+          <div class="lb">累计发放({{ coinName }})</div>
+          <div class="vl">{{ summary.total_grant || 0 }}</div>
+        </div>
+        <div class="item">
+          <div class="lb">账户剩余({{ coinName }})</div>
+          <div class="vl" style="color:#0052d9;">{{ summary.total_remaining || 0 }}</div>
+        </div>
+        <div class="item">
+          <div class="lb">累计消费({{ coinName }})</div>
+          <div class="vl" style="color:#d54941;">{{ summary.total_consumed || 0 }}</div>
+        </div>
+        <div class="item">
+          <div class="lb">累计过期({{ coinName }})</div>
+          <div class="vl" style="color:#e37318;">{{ Math.abs(summary.total_expired || 0) }}</div>
+        </div>
+      </div>
+
+      <div id="chart" v-loading="loading"></div>
+
+      <!-- 按日明细 -->
+      <t-table row-key="date" :data="days" :columns="columns" :loading="loading"
+        style="margin-top:16px;" :pagination="{ pageSize: 31 }">
+      </t-table>
+    </t-card>
+  </com-config>
+</div>
+
+<!-- =======页面独有======= -->
+<script src="/plugins/addon/ouyun_coin_pro/template/admin/js/common.js?v=a"></script>
+<script src="/{$template_catalog}/template/{$themes}/js/common/echarts.min.js"></script>
+<script src="/plugins/addon/ouyun_coin_pro/template/admin/js/report.js?v=b"></script>

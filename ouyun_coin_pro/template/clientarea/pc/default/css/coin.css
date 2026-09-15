@@ -1,0 +1,24 @@
+/* 平台币pro - 会员中心主页 */
+.oycoin-main .oycoin-hero{display:flex;align-items:center;justify-content:space-between;gap:16px;
+  background:#fff;color:#333;border:1px solid #e3e8f0;border-radius:8px;padding:22px 28px;flex-wrap:wrap;}
+.oycoin-main .oycoin-hero .lb{font-size:13px;color:#888;}
+.oycoin-main .oycoin-hero .vl{font-size:34px;font-weight:700;margin-top:6px;color:#0052d9;font-variant-numeric:tabular-nums;}
+.oycoin-main .oycoin-hero .vl .sub{font-size:13px;font-weight:400;opacity:.8;margin-left:8px;}
+.oycoin-main .oycoin-hero .tips{margin-top:8px;font-size:12px;display:flex;gap:14px;flex-wrap:wrap;color:#888;}
+.oycoin-main .oycoin-hero .tips .warn{color:#ffd04b;}
+.oycoin-main .oycoin-signin{text-align:center;}
+.oycoin-main .oycoin-signin .t{font-size:13px;margin-bottom:8px;color:#555;}
+.oycoin-main .oycoin-card{margin-top:16px;}
+.oycoin-main .oycoin-claim-list .oycoin-claim{display:flex;align-items:center;justify-content:space-between;
+  padding:10px 4px;border-bottom:1px dashed #eee;}
+.oycoin-main .oycoin-claim-list .oycoin-claim:last-child{border-bottom:none;}
+.oycoin-main .oycoin-claim .name{font-weight:600;}
+.oycoin-main .oycoin-claim .sub{font-size:12px;color:#888;margin-top:4px;}
+.oycoin-main .oycoin-log-head{display:flex;justify-content:space-between;align-items:center;}
+.oycoin-main [class^=oycoin-tag-]{display:inline-block;padding:1px 8px;border-radius:3px;font-size:12px;}
+.oycoin-main .oycoin-tag-grant{background:#e8f7ef;color:#00a870;}
+.oycoin-main .oycoin-tag-consume{background:#feecec;color:#d54941;}
+.oycoin-main .oycoin-tag-refund{background:#f0e9ff;color:#8a2be2;}
+.oycoin-main .oycoin-tag-expire{background:#fdf3e8;color:#e37318;}
+.oycoin-main .oycoin-tag-revoke{background:#f0f0f0;color:#888;}
+.oycoin-main .oycoin-desc{font-size:13px;line-height:1.9;color:#555;word-break:break-all;}
