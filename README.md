@@ -4,6 +4,7 @@
 </head>
 <body>
 <p>一键安装失败，可下载文件，上传到\public\plugins\addon文件夹，双击解压，在v10后台插件列表点安装</p>
+<p>插件全开源、无加密、自然就没有任何后门</p>
 <p>插件有疑问，<span style="color: #e03e2d; font-size: 14pt;"><strong>插件VIP群1081921160</strong></span></p>
 <p><span style="color: #e03e2d; font-size: 14pt;"><span style="color: #000000;">介绍：</span></span></p>
 <p><span style="color: #e03e2d; font-size: 14pt;"><span style="color: #000000;">1、v10原版风格UI</span></span></p>
